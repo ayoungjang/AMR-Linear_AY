@@ -1,5 +1,6 @@
 library("dplyr")
 # setwd("~/Documents/ISU/RA_AMR/SwineSalData")
+setwd("\wsl.localhost\Ubuntu\home\ayoung\AMR-Linear")
 anti_Name <- c("AMI", "AMP", "ATM", "AUG", "AXO", "AZM", "CAZ", "CCV", "CEP", "CEQ", "CHL", "CIP", "COT", "CTC",
                "CTX", "FEP", "FIS", "FOX", "GEN", "IMI", "KAN", "NAL", "PTZ", "SMX", "STR", "TET", "TIO")
 
@@ -11,7 +12,7 @@ for (i in 1:2) {
     ##----------------------------------------------
     ## Loading data set 
     ##----------------------------------------------
-    datFileName <- paste0("DataBySeroAnti/", serotype, "_", antibiotic, ".csv")
+    datFileName <- paste0("./data.csv")
     dat <- read.csv(datFileName, stringsAsFactors = F, header = T)
     dat <- dat %>% filter(Year >= 2002)
     y0 <- dat$l_vec

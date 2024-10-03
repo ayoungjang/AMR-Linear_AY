@@ -54,12 +54,22 @@ rTNorm <- function(y, y1, mu, sigma, censoredType) {
   N_limit <- 8 
   N_prob0 <- 1e-15 
   N_prob1 <- 1 - 1e-15
+
+  ##---------------------------------------------------ay##
+  ## initialize 'ans' variable. 
+  ##---------------------------------------------------ay##
+  ans <- 0
+  ##---------------------------------------------------ay##
+  
+  # print(censoredType)
+  
   if (censoredType == 0) {
     ## right censored 
     ## centerd observation y 
     Zy <- (y - mu) / sigma
     Phiy <- pnorm(Zy, mean = 0, sd = 1)  
     U <- Phiy + (1 - Phiy) * runif(1)   ## U ~ Unif(Phiy, 1) ## 
+   
     if (U > N_prob1) {
       ans <- mu + sigma * N_limit
     }  else {
@@ -76,6 +86,7 @@ rTNorm <- function(y, y1, mu, sigma, censoredType) {
     Zy <- (y - mu) / sigma
     Phiy <- pnorm(Zy, 0, 1)
     U <- Phiy * runif(1)  ## U ~ Unif(0, Phiy)
+  
     if (U < N_prob0) {
       ans <- mu - sigma * N_limit
     } else {
@@ -94,6 +105,7 @@ rTNorm <- function(y, y1, mu, sigma, censoredType) {
     PhiZy0 <- pnorm(Zy0, 0, 1)
     PhiZy1 <- pnorm(Zy1, 0, 1)
     U <- PhiZy0 + (PhiZy1 - PhiZy0) * runif(1)    ## U ~ Unif(PhiZy0, PhiZy1)
+  
     if (U < N_prob0) {
       ans <- mu - sigma * N_limit 
     } else {
@@ -104,6 +116,8 @@ rTNorm <- function(y, y1, mu, sigma, censoredType) {
       }
     }
   }
+ 
+  
   return(ans)
 }
 
@@ -475,7 +489,16 @@ model2_mcmc <- function(y0, y1, c, p, beta, sigma, mu, tau, yearLabel, censor,
   save(mu.keep,          file = paste0(output, "mu.keep.RData"))
   save(tau.keep,         file = paste0(output, "tau.keep.RData"))
   
+  ###########ay
+  write.csv(muAlpha.keep,     file = paste0(output, "muAlpha.keep.csv"))
+  write.csv(sigmaAlpha.keep,  file = paste0(output, "sigmaAlpha.keep.csv"))
+  write.csv(p.keep,           file = paste0(output, "p.keep.csv"))
+  write.csv(beta.keep,        file = paste0(output, "beta.keep.csv"))
+  write.csv(sigma.keep,       file = paste0(output, "sigma.keep.csv"))
+  write.csv(mu.keep,          file = paste0(output, "mu.keep.csv"))
+  write.csv(tau.keep,         file = paste0(output, "tau.keep.csv"))
+  ###########ay
+  
 }
-
 
 

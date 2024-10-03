@@ -7,11 +7,15 @@
 ##---------------------------------------------------
 library("dplyr")
 library("ggplot2")
-anti_Name <- c("AMI", "AMP", "ATM", "AUG", "AXO", "AZM", "CAZ", "CCV", "CEP", "CEQ", "CHL", "CIP", "COT", "CTC",
-               "CTX", "FEP", "FIS", "FOX", "GEN", "IMI", "KAN", "NAL", "PTZ", "SMX", "STR", "TET", "TIO")
+# anti_Name <- c("AMI", "AMP", "ATM", "AUG", "AXO", "AZM", "CAZ", "CCV", "CEP", "CEQ", "CHL", "CIP", "COT", "CTC",
+#                "CTX", "FEP", "FIS", "FOX", "GEN", "IMI", "KAN", "NAL", "PTZ", "SMX", "STR", "TET", "TIO")
 All_Sal <- c("SalT", "Sal4")
 
-##---------------------------------------------------
+##---------------------------------------------------ay##
+anti_Name <- c("TIO","CHL")
+setwd("C:/Users/ayoung/Desktop/AMR-Linear")
+##---------------------------------------------------ay##
+
 
 ##---------------------------------------------------
 ## Extract Hierarchical logit model 
@@ -167,11 +171,14 @@ calculateDiff <- function(yearVec, path) {
 }
 
 
+# 
+# for (i in 1:2) {
+#   for (j in c(11, 27)) { 
+serotype <- "SalT"
+antibiotic <- "TIO"
 
-for (i in 1:2) {
-  for (j in c(11, 27)) { 
-    path <- paste0("./LinearModelOutput/From2002/", All_Sal[i], "_", anti_Name[j], "_Res/")
-    yearSource <- read.csv(paste0("./DataBySeroAnti/", All_Sal[i], "_", anti_Name[j], ".csv")) %>% 
+path <- paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/")
+    yearSource <- read.csv(paste0("./DataBySeroAnti/",serotype, "_", antibiotic, ".csv")) %>% 
       filter(Year >= 2002)
     yearVec <- yearSource %>% 
       dplyr::select("Year") %>% 
@@ -235,18 +242,17 @@ for (i in 1:2) {
     # pdf(paste0("./Swine", All_Sal[i],"/", All_Sal[i], "_", anti_Name[j], "_Res/", All_Sal[i],"_", anti_Name[j],"_trplt_gamma.pdf"))
     # multiplot(trplt.gamma[[1]], trplt.gamma[[2]], cols = 1)
     # dev.off()
-  }
-}
+#   }
+# }
 
 #------------------
 # comb plot log2 scale
 #------------------
-for (i in 1:2) { 
-  for (j in c(11, 27)) { #c(1:27)[-c(1, 6, 8, 10, 14, 16, 20, 26)]
-    serotypeNames <- All_Sal[i]
-    antibioticsDrugs <- anti_Name[j]
-    path <- paste0("./LinearModelOutput/From2002/", All_Sal[i], "_", anti_Name[j], "_Res/")
-    datFileName <- paste0("DataBySeroAnti/", serotypeNames, "_", antibioticsDrugs, ".csv") 
+# for (i in 1:2) {
+#   for (j in c(11, 27)) { #c(1:27)[-c(1, 6, 8, 10, 14, 16, 20, 26)]
+
+    path <- paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/")
+    datFileName <- paste0("./DataBySeroAnti/", serotype, "_", antibiotic, ".csv") 
     yearSource <- read.csv(datFileName) %>% filter(Year >= 2002)
     yearVec <- yearSource %>% 
       dplyr::select("Year") %>% 
@@ -265,23 +271,23 @@ for (i in 1:2) {
     dat_full <- left_join(dat_group, dat_totObs) %>% mutate(prop = num / totObs)
     plotDatSource <- left_join(plotDatSource, dat_full[dat_full$cGroup==1, c("Year", "prop")])
     plotDatSource <- left_join(plotDatSource, dat_group[dat_group$cGroup==0, c("Year", "meanMIC")])
-    beta0est <- read.csv(paste0("LinearModelOutput/From2002/", All_Sal[i], "_", anti_Name[j], "_Res/", "ParamEst.csv"))[, 2:5]
+    beta0est <- read.csv(paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/", "ParamEst.csv"))[, 2:5]
     beta0est$yearVec <- as.factor(beta0est$yearVec)
     beta0est.org <- beta0est
     #beta0est.org[, 2:4] <- 2^(beta0est[, 2:4])
-    line <- read.csv(paste0("LinearModelOutput/From2002/", All_Sal[i], "_", anti_Name[j], "_Res/", "ParamEst.csv"))[, "mu0mean"]
-    ga0mean <- read.csv(paste0("LinearModelOutput/From2002/", All_Sal[i], "_", anti_Name[j], "_Res/", "ParamEst.csv"))[, "ga0mean"][1]
-    ga1mean <- read.csv(paste0("LinearModelOutput/From2002/", All_Sal[i], "_", anti_Name[j], "_Res/", "ParamEst.csv"))[, "ga1mean"][1]
+    line <- read.csv(paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/", "ParamEst.csv"))[, "mu0mean"]
+    ga0mean <- read.csv(paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/", "ParamEst.csv"))[, "ga0mean"][1]
+    ga1mean <- read.csv(paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/", "ParamEst.csv"))[, "ga1mean"][1]
     line.org <- line
     #line.org <- 2^line
     plotDatSource <- left_join(plotDatSource, beta0est.org, by = c("Year"="yearVec"))
     
-    load(paste0("./LinearModelOutput/From2002/", All_Sal[i], "_", anti_Name[j], "_Res/mu.keep.RData"))
-    mu.res.removeBurnin <- tail(mu.keep, 6000)
+    load(paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/mu.keep.RData"))
+    mu.res.removeBurnin <- tail(mu.keep, length(mu.keep))
     
-    covOfGamma <- cov(matrix(unlist(mu.res.removeBurnin), nrow = 6000, byrow = T)[, 16], matrix(unlist(mu.res.removeBurnin), nrow = 6000, byrow = T)[, 17])
-    varGamma0 <- matrix(unlist(mu.res.removeBurnin), nrow = 6000, byrow = T)[, 16] %>% var()
-    varGamma1 <- matrix(unlist(mu.res.removeBurnin), nrow = 6000, byrow = T)[, 17] %>% var()
+    covOfGamma <- cov(matrix(unlist(mu.res.removeBurnin), nrow = length(mu.keep), byrow = T)[, 16], matrix(unlist(mu.res.removeBurnin), nrow = length(mu.keep), byrow = T)[, 17])
+    varGamma0 <- matrix(unlist(mu.res.removeBurnin), nrow = length(mu.keep), byrow = T)[, 16] %>% var()
+    varGamma1 <- matrix(unlist(mu.res.removeBurnin), nrow = length(mu.keep), byrow = T)[, 17] %>% var()
     
     t <- 1:14
     varOfLinear <- varGamma0 + varGamma1 * t^2 + 2 * covOfGamma * t
@@ -303,8 +309,11 @@ for (i in 1:2) {
     #   sig.year.nrow <- sig.year-min(yearVec)+1
     #   sig.df <- data.frame("sig.year" = sig.year.nrow, "sig.val" = (plotDatSource$beta0mean[sig.year.nrow]-ymin)*(pmax/(ymax-ymin)))
     # }
+    
     plotDatSource <- plotDatSource %>% 
       mutate(prop = ifelse(is.na(prop), 0, prop))
+    pdf(paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/", serotype, "_", antibiotic, "_LogComb_newRangeCI.pdf"))
+    
     plotres <- ggplot(plotDatSource, aes(x = Year, y = prop)) +
       geom_bar(stat = "identity", fill = "grey85") +
       labs(y = "Observed proportion of resistant isolates", x = "Year") +
@@ -322,20 +331,22 @@ for (i in 1:2) {
       theme(axis.text.x = element_text(angle = 270, hjust = 1), 
             axis.title.y.right=element_text(color="red"),
             axis.text.y.right=element_text(color="red")) +
-      labs(title = paste0(c("S. enterica serovar Typhimurium", "S. enterica serovar I,4,[5],12:i:-")[i],
-                          ", ", antibioticsDrugs, ", log2(MIC) scale"))
+      labs(title = paste0(c("S. enterica serovar", "S. enterica serovar I,4,[5],12:i:-"),serotype,
+                          ", ", antibiotic, ", log2(MIC) scale"))
     
     # plotres <- plotres + geom_point(aes(x = sig.year, y = sig.val), data = sig.df, shape = 1, size = 3, col = "black")
     
-    plotres <- plotres +
-      geom_ribbon(aes(x = t, 
-                      ymin=(lowerOfLinear-ymin)*(pmax/(ymax-ymin)),
-                      ymax=(upperOfLinear-ymin)*(pmax/(ymax-ymin))), 
-                  fill="blue", alpha="0.1")  
+    # plotres <- plotres +
+    #   geom_ribbon(aes(x = t,
+    #                   ymin=(lowerOfLinear-ymin)*(pmax/(ymax-ymin)),
+    #                   ymax=(upperOfLinear-ymin)*(pmax/(ymax-ymin))),
+    #               fill="blue", alpha="0.1")
     
-    pdf(paste0("./LinearModelOutput/From2002/", All_Sal[i], "_", anti_Name[j], "_Res/", All_Sal[i], "_", anti_Name[j], "_LogComb_newRangeCI.pdf"))
-    plotres
+    ##---------------------------------------------------ay##
+    print(plotres)
     dev.off()
-  }
-}
+    ##---------------------------------------------------ay##
+    # plotres
+#   }
+# }
 
