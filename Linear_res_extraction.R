@@ -3,12 +3,12 @@
 ## set working directory as ./Model1_Paper1
 ##---------------------------------------------------
 ##rm(list = ls())
+# anti_Name <- c("AMI", "AMP", "ATM", "AUG", "AXO", "AZM", "CAZ", "CCV", "CEP", "CEQ", "CHL", "CIP", "COT", "CTC",
+#                "CTX", "FEP", "FIS", "FOX", "GEN", "IMI", "KAN", "NAL", "PTZ", "SMX", "STR", "TET", "TIO")
 
 ##---------------------------------------------------
 library("dplyr")
 library("ggplot2")
-# anti_Name <- c("AMI", "AMP", "ATM", "AUG", "AXO", "AZM", "CAZ", "CCV", "CEP", "CEQ", "CHL", "CIP", "COT", "CTC",
-#                "CTX", "FEP", "FIS", "FOX", "GEN", "IMI", "KAN", "NAL", "PTZ", "SMX", "STR", "TET", "TIO")
 All_Sal <- c("SalT", "Sal4")
 
 ##---------------------------------------------------ay##
@@ -176,10 +176,11 @@ calculateDiff <- function(yearVec, path) {
 #   for (j in c(11, 27)) { 
 serotype <- "SalT"
 antibiotic <- "TIO"
-
 path <- paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/")
+
     yearSource <- read.csv(paste0("./DataBySeroAnti/",serotype, "_", antibiotic, ".csv")) %>% 
       filter(Year >= 2002)
+    
     yearVec <- yearSource %>% 
       dplyr::select("Year") %>% 
       unique() %>% .[,"Year"]
@@ -275,19 +276,32 @@ path <- paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res
     beta0est$yearVec <- as.factor(beta0est$yearVec)
     beta0est.org <- beta0est
     #beta0est.org[, 2:4] <- 2^(beta0est[, 2:4])
-    line <- read.csv(paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/", "ParamEst.csv"))[, "mu0mean"]
-    ga0mean <- read.csv(paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/", "ParamEst.csv"))[, "ga0mean"][1]
-    ga1mean <- read.csv(paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/", "ParamEst.csv"))[, "ga1mean"][1]
+    line <- read.csv(paste0(path, "ParamEst.csv"))[, "mu0mean"]
+    ga0mean <- read.csv(paste0(path, "ParamEst.csv"))[, "ga0mean"][1]
+    ga1mean <- read.csv(paste0(path, "ParamEst.csv"))[, "ga1mean"][1]
     line.org <- line
     #line.org <- 2^line
     plotDatSource <- left_join(plotDatSource, beta0est.org, by = c("Year"="yearVec"))
     
-    load(paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/mu.keep.RData"))
+    load(paste0(path,mu.keep.RData))
+    
+    # mu.res.removeBurnin <- tail(mu.keep, 6000)
+    # 
+    # covOfGamma <- cov(matrix(unlist(mu.res.removeBurnin), nrow = 6000, byrow = T)[, 16], matrix(unlist(mu.res.removeBurnin), nrow = 6000, byrow = T)[, 17])
+    # varGamma0 <- matrix(unlist(mu.res.removeBurnin), nrow = 6000, byrow = T)[, 16] %>% var()
+    # varGamma1 <- matrix(unlist(mu.res.removeBurnin), nrow = 6000, byrow = T)[, 17] %>% var()
+    
+    
+    ##--------------------------------------ay
+    ## changed 6000 to length(mu.keep)
+    ##--------------------------------------ay
+    
     mu.res.removeBurnin <- tail(mu.keep, length(mu.keep))
     
     covOfGamma <- cov(matrix(unlist(mu.res.removeBurnin), nrow = length(mu.keep), byrow = T)[, 16], matrix(unlist(mu.res.removeBurnin), nrow = length(mu.keep), byrow = T)[, 17])
     varGamma0 <- matrix(unlist(mu.res.removeBurnin), nrow = length(mu.keep), byrow = T)[, 16] %>% var()
     varGamma1 <- matrix(unlist(mu.res.removeBurnin), nrow = length(mu.keep), byrow = T)[, 17] %>% var()
+    ##--------------------------------------ay
     
     t <- 1:14
     varOfLinear <- varGamma0 + varGamma1 * t^2 + 2 * covOfGamma * t
@@ -312,7 +326,7 @@ path <- paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res
     
     plotDatSource <- plotDatSource %>% 
       mutate(prop = ifelse(is.na(prop), 0, prop))
-    pdf(paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/", serotype, "_", antibiotic, "_LogComb_newRangeCI.pdf"))
+    pdf(paste0(path, serotype, "_", antibiotic, "_Res2/", serotype, "_", antibiotic, "_LogComb_newRangeCI.pdf"))
     
     plotres <- ggplot(plotDatSource, aes(x = Year, y = prop)) +
       geom_bar(stat = "identity", fill = "grey85") +
