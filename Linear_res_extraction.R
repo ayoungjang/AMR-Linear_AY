@@ -170,12 +170,13 @@ calculateDiff <- function(yearVec, path) {
   return(diff)
 }
 
-
+serotype <- "SalT"
+antibiotic <- "TIO"
 # 
 # for (i in 1:2) {
 #   for (j in c(11, 27)) { 
-serotype <- "SalT"
-antibiotic <- "TIO"
+
+# antibiotic <- anti_Name[i]
 path <- paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/")
 
     yearSource <- read.csv(paste0("./DataBySeroAnti/",serotype, "_", antibiotic, ".csv")) %>% 
@@ -209,7 +210,7 @@ path <- paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res
     slope.sig <- character()
     slope.sig <- ifelse(ParamEst$ga1X25[1] * ParamEst$ga1X975[1] > 0, "*", "")
     write.csv(ParamEst, paste0(path, "ParamEst.csv"))
-    write.csv(ParamEst, paste0(path, "ParamEst", slope.sig, ".csv"))
+    # write.csv(ParamEst, paste0(path, "ParamEst", slope.sig, ".csv"))
     ## trace plot of beta0's (whole chain)
     # load(paste0("./Swine", All_Sal[i], "/", All_Sal[i], "_", anti_Name[j], "_Res/beta.keep.RData"))
     # trplt.beta0 <- list()
@@ -250,6 +251,7 @@ path <- paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res
 # comb plot log2 scale
 #------------------
 # for (i in 1:2) {
+#   antibiotic <- anti_Name[i]
 #   for (j in c(11, 27)) { #c(1:27)[-c(1, 6, 8, 10, 14, 16, 20, 26)]
 
     path <- paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/")
@@ -269,9 +271,12 @@ path <- paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res
                 meany0MIC = mean(l_vec)) %>%  data.frame() 
     dat_totObs <- dat %>% mutate(Year = as.factor(Year)) %>% 
       group_by(Year) %>% summarise(totObs = n()) %>% data.frame() 
+    
     dat_full <- left_join(dat_group, dat_totObs) %>% mutate(prop = num / totObs)
+    
     plotDatSource <- left_join(plotDatSource, dat_full[dat_full$cGroup==1, c("Year", "prop")])
     plotDatSource <- left_join(plotDatSource, dat_group[dat_group$cGroup==0, c("Year", "meanMIC")])
+    
     beta0est <- read.csv(paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/", "ParamEst.csv"))[, 2:5]
     beta0est$yearVec <- as.factor(beta0est$yearVec)
     beta0est.org <- beta0est
@@ -282,25 +287,24 @@ path <- paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res
     line.org <- line
     #line.org <- 2^line
     plotDatSource <- left_join(plotDatSource, beta0est.org, by = c("Year"="yearVec"))
-    
-    load(paste0(path,mu.keep.RData))
+    load(paste0(path,"mu.keep.RData"))
     
     # mu.res.removeBurnin <- tail(mu.keep, 6000)
-    # 
+    
     # covOfGamma <- cov(matrix(unlist(mu.res.removeBurnin), nrow = 6000, byrow = T)[, 16], matrix(unlist(mu.res.removeBurnin), nrow = 6000, byrow = T)[, 17])
     # varGamma0 <- matrix(unlist(mu.res.removeBurnin), nrow = 6000, byrow = T)[, 16] %>% var()
     # varGamma1 <- matrix(unlist(mu.res.removeBurnin), nrow = 6000, byrow = T)[, 17] %>% var()
     
-    
     ##--------------------------------------ay
-    ## changed 6000 to length(mu.keep)
+    ## changed 6000 to length(mu.res.removeBurnin)
     ##--------------------------------------ay
-    
+    # print(length(mu.keep))
     mu.res.removeBurnin <- tail(mu.keep, length(mu.keep))
-    
-    covOfGamma <- cov(matrix(unlist(mu.res.removeBurnin), nrow = length(mu.keep), byrow = T)[, 16], matrix(unlist(mu.res.removeBurnin), nrow = length(mu.keep), byrow = T)[, 17])
-    varGamma0 <- matrix(unlist(mu.res.removeBurnin), nrow = length(mu.keep), byrow = T)[, 16] %>% var()
-    varGamma1 <- matrix(unlist(mu.res.removeBurnin), nrow = length(mu.keep), byrow = T)[, 17] %>% var()
+
+    num <- length(mu.res.removeBurnin)
+    covOfGamma <- cov(matrix(unlist(mu.res.removeBurnin), nrow = num, byrow = T)[, 16], matrix(unlist(mu.res.removeBurnin), nrow =num, byrow = T)[, 17])
+    varGamma0 <- matrix(unlist(mu.res.removeBurnin), nrow = num, byrow = T)[, 16] %>% var()
+    varGamma1 <- matrix(unlist(mu.res.removeBurnin), nrow = num, byrow = T)[, 17] %>% var()
     ##--------------------------------------ay
     
     t <- 1:14
@@ -323,44 +327,46 @@ path <- paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res
     #   sig.year.nrow <- sig.year-min(yearVec)+1
     #   sig.df <- data.frame("sig.year" = sig.year.nrow, "sig.val" = (plotDatSource$beta0mean[sig.year.nrow]-ymin)*(pmax/(ymax-ymin)))
     # }
-    
-    plotDatSource <- plotDatSource %>% 
-      mutate(prop = ifelse(is.na(prop), 0, prop))
-    pdf(paste0(path, serotype, "_", antibiotic, "_Res2/", serotype, "_", antibiotic, "_LogComb_newRangeCI.pdf"))
-    
-    plotres <- ggplot(plotDatSource, aes(x = Year, y = prop)) +
-      geom_bar(stat = "identity", fill = "grey85") +
-      labs(y = "Observed proportion of resistant isolates", x = "Year") +
-      geom_line(aes(y = (meanMIC-ymin)*(pmax/(ymax-ymin)), group = 2), col = "grey50")+
-      geom_point(aes(y = (meanMIC-ymin)*(pmax/(ymax-ymin)), group = 2), col = "grey50", size = 1.5, shape = 4)+
-      geom_line(aes(y = (beta0mean-ymin)*(pmax/(ymax-ymin)), group = 2), col = "red")+
-      geom_point(aes(y = (beta0mean-ymin)*(pmax/(ymax-ymin)), group = 2), col = "red", size = 1.5)+
-      # geom_line(aes(y = (beta0X25-ymin)*(pmax/(ymax-ymin)), group = 2), col = "red", linetype="dotted")+
-      # geom_line(aes(y = (beta0X975-ymin)*(pmax/(ymax-ymin)), group = 2), col = "red", linetype="dotted")+
-      geom_line(aes(y = (line.org-ymin)*(pmax/(ymax-ymin)), group = 2), col = "blue") +
-      scale_y_continuous(limits=c(0,0.1),
-                         sec.axis = sec_axis(trans = ~./(pmax/(ymax-ymin))+ymin, name = "Estimated mean log2(MIC) in non-resistant population")) +
-      scale_color_manual(labels = c("Naive mean", "Est beta0"), values = c("black", "red")) +
-      theme_light() +
-      theme(axis.text.x = element_text(angle = 270, hjust = 1), 
-            axis.title.y.right=element_text(color="red"),
-            axis.text.y.right=element_text(color="red")) +
-      labs(title = paste0(c("S. enterica serovar", "S. enterica serovar I,4,[5],12:i:-"),serotype,
-                          ", ", antibiotic, ", log2(MIC) scale"))
-    
+   
+  plotDatSource <- plotDatSource %>% 
+  mutate(prop = ifelse(is.na(prop), 0, prop),
+         meanMIC_rescaled = (meanMIC - ymin) * (pmax / (ymax - ymin)),
+         beta0mean_rescaled = (beta0mean - ymin) * (pmax / (ymax - ymin)),
+         line_org_rescaled = (line.org - ymin) * (pmax / (ymax - ymin)))
+
+plotres <- ggplot(plotDatSource, aes(x = Year, y = prop)) +
+  geom_bar(stat = "identity", fill = "grey85") +
+  labs(y = "Observed proportion of resistant isolates", x = "Year") +
+  geom_line(aes(y = meanMIC_rescaled, group = 2), col = "grey50") +
+  geom_point(aes(y = meanMIC_rescaled, group = 2), col = "grey50", size = 1.5, shape = 4) +
+  geom_line(aes(y = beta0mean_rescaled, group = 2), col = "red") +
+  geom_point(aes(y = beta0mean_rescaled, group = 2), col = "red", size = 1.5) +
+  geom_line(aes(y = line_org_rescaled, group = 2), col = "blue") +
+  scale_y_continuous(limits = c(0, 0.1),
+                     sec.axis = sec_axis(trans = ~./(pmax / (ymax - ymin)) + ymin, 
+                                         name = "Estimated mean log2(MIC) in non-resistant population")) +
+  theme_light() +
+  theme(axis.text.x = element_text(angle = 270, hjust = 1), 
+        axis.title.y.right = element_text(color = "red"),
+        axis.text.y.right = element_text(color = "red"))
+   
     # plotres <- plotres + geom_point(aes(x = sig.year, y = sig.val), data = sig.df, shape = 1, size = 3, col = "black")
     
-    # plotres <- plotres +
-    #   geom_ribbon(aes(x = t,
-    #                   ymin=(lowerOfLinear-ymin)*(pmax/(ymax-ymin)),
-    #                   ymax=(upperOfLinear-ymin)*(pmax/(ymax-ymin))),
-    #               fill="blue", alpha="0.1")
-    
     ##---------------------------------------------------ay##
+    ## print blue area. alpha "0.1" -> 0.1
+    ##---------------------------------------------------ay##
+    
+    plotres <- plotres +
+      geom_ribbon(aes(x = t,
+                      ymin=(lowerOfLinear-ymin)*(pmax/(ymax-ymin)),
+                      ymax=(upperOfLinear-ymin)*(pmax/(ymax-ymin))),
+                  fill="blue", alpha=0.1)
+    
     print(plotres)
     dev.off()
+    system(paste("open",paste0(path, serotype, "_", antibiotic, "_LogComb_newRangeCI.pdf")))
     ##---------------------------------------------------ay##
     # plotres
-#   }
+  # }
 # }
 
