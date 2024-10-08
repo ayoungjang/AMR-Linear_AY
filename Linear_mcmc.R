@@ -54,10 +54,9 @@ rTNorm <- function(y, y1, mu, sigma, censoredType) {
   N_limit <- 8 
   N_prob0 <- 1e-15 
   N_prob1 <- 1 - 1e-15
-  ans <- 0  
+  ans <- 1
   
   if (censoredType == 0) {
-   
     ## right censored 
     ## centerd observation y 
     Zy <- (y - mu) / sigma
@@ -75,7 +74,6 @@ rTNorm <- function(y, y1, mu, sigma, censoredType) {
   }
   
   if (censoredType == 1) {
-  
     ## left-censored 
     Zy <- (y - mu) / sigma
     Phiy <- pnorm(Zy, 0, 1)
@@ -266,7 +264,22 @@ updateHierarchicalMu <- function(mu, beta, tau, a, b, yearLabel) {
   gamma1 <- mu[[3]][2]
   # update gamma0
   gamma0Update <- updateNormalMean(beta[, 1]-gamma1*time, tau[1], a=0, b=10^6)
-  gamma1Update <- updateNormalMean((beta[1, 1]-gamma0Update)/1, tau[1]/1, a=0, b=10^2)
+  
+  ##ay-----------------------------------------------------------------------
+  ## gamma update
+  ##ay-----------------------------------------------------------------------
+  gamma1Updates <- numeric(length(time)) # gamma1의 업데이트를 저장할 벡터
+  gamma1Updates[1] <- updateNormalMean((beta[1, 1] - gamma0Update) / 1, tau[1] / 1, a = 0, b = 10^2)
+  
+  for (t in time[-1]) {
+    gamma1Updates[t] <- updateNormalMean((beta[t, 1] - gamma0Update) / t, tau[1] / t, a = 0, b = 10^2)
+  }
+  gamma1Update <- mean(gamma1Updates)
+  
+  ##-----------------------ay
+  
+  # gamma1Update <- updateNormalMean((beta[1, 1]-gamma0Update)/1, tau[1]/1, a=0, b=10^2)
+  
   for (t in time[-1]) {
     gamma1Update <- updateNormalMean((beta[t, 1]-gamma0Update)/t, tau[1]/t, a=0, b=10^2)
   }
@@ -289,8 +302,10 @@ updateBeta <- function(y, c, sigma, mu, tau, uniqueYearLength, yearLabel) {
   
   for (i in 1:uniqueYearLength) {
     ## 
-    ySubset <- y[yearLabel == i]
-    cSubset <- c[yearLabel == i]
+    ySubset <- y[yearLabel == unique(yearLabel)[i]]
+    cSubset <- c[yearLabel == unique(yearLabel)[i]]
+    # ySubset <- y[yearLabel == i]
+    # cSubset <- c[yearLabel == i]
     ##  
     first.comp.obs <- cSubset == 0
     second.comp.obs <- cSubset == 1
@@ -298,18 +313,34 @@ updateBeta <- function(y, c, sigma, mu, tau, uniqueYearLength, yearLabel) {
     num.first.comp <- sum(first.comp.obs)
     ## number of second component 
     num.second.comp <- sum(second.comp.obs)
+    # if (num.first.comp == 0) {
+    #   ## no observations in the first component 
+    #   ## draw from prior 
+    #   betaUpdated[i, 1] <- rnorm(1, mean = mu[[1]][i], sd = tau[1])
+    #   betaUpdated[i, 2] <- updateNormalMean(ySubset, sigma[2], mu[[2]], tau[2]) 
+    #   
+    # } else if (num.second.comp == 0) {
+    #   ## no observations in the second component 
+    #   ## draw from prior 
+    #   betaUpdated[i, 2] <- rnorm(1, mean = mu[[2]], sd = tau[2])
+    #   betaUpdated[i, 1] <- updateNormalMean(ySubset, sigma[1], mu[[1]][i], tau[1])
+    # } 
+    # 
+    ##ay-----------------------------------------------------------------------
+    ## keep last beta value or using mean
+    ##ay-----------------------------------------------------------------------
     if (num.first.comp == 0) {
-      ## no observations in the first component 
-      ## draw from prior 
-      betaUpdated[i, 1] <- rnorm(1, mean = mu[[1]][i], sd = tau[1])
-      betaUpdated[i, 2] <- updateNormalMean(ySubset, sigma[2], mu[[2]], tau[2]) 
+      ## keep last beta value or using mean
+      betaUpdated[i, 1] <- ifelse(i > 1, betaUpdated[i - 1, 1], mu[[1]][i])
+      betaUpdated[i, 2] <- updateNormalMean(ySubset, sigma[2], mu[[2]], tau[2])
       
     } else if (num.second.comp == 0) {
-      ## no observations in the second component 
-      ## draw from prior 
-      betaUpdated[i, 2] <- rnorm(1, mean = mu[[2]], sd = tau[2])
+      ## keep last beta value or using mean
+      betaUpdated[i, 2] <- ifelse(i > 1, betaUpdated[i - 1, 2], mu[[2]])
       betaUpdated[i, 1] <- updateNormalMean(ySubset, sigma[1], mu[[1]][i], tau[1])
-    } else {
+    }
+    ##ay-----------------------------------------------------------------------
+    else {
       betaUpdated[i, 1] <- updateNormalMean(ySubset[cSubset == 0], sigma[1], 
                                             mu[[1]][i], tau[1])
       betaUpdated[i, 2] <- updateNormalMean(ySubset[cSubset == 1], sigma[2], 
