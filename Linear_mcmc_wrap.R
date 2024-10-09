@@ -1,5 +1,6 @@
 library("dplyr")
 library("writexl")
+library("zoo")
 
 # anti_Name <- c("AMI", "AMP", "ATM", "AUG", "AXO", "AZM", "CAZ", "CCV", "CEP", "CEQ", "CHL", "CIP", "COT", "CTC",
 #                "CTX", "FEP", "FIS", "FOX", "GEN", "IMI", "KAN", "NAL", "PTZ", "SMX", "STR", "TET", "TIO")
@@ -60,7 +61,7 @@ for(antibiotic in anti_Name){
 # antibiotic <-  anti_Name[j]
 
 serotype <- "SalT"
-antibiotic <- "TIO"
+antibiotic <- "CHL"
 
 ##----------------------------------------------
 ## Loading data set 
@@ -74,8 +75,17 @@ antibiotic <- "TIO"
 
 datFileName <- paste0("DataBySeroAnti/", serotype, "_", antibiotic, ".csv")
 dat <- read.csv(datFileName, stringsAsFactors = F, header = T)
+
 dat <- dat %>% filter(Year >= 2002)
 dat <- dat[-1]
+
+##---------------------------------------------------ay##
+## order by Year
+##---------------------------------------------------ay##
+dat <- dat %>%
+  arrange(Year)
+##---------------------------------------------------ay##
+
 ##---------------------------------------------------ay##
 ## added l_vec, u_vec, censored
 ##---------------------------------------------------ay##
@@ -88,14 +98,14 @@ for (k in 1:nrow(dat)) {
   y_ij <- log2(dat$Rslt[k])
   
   if (dat$Equiv[k] == "<=" || dat$Equiv[k] == "<") {  # Left censoring
-    dat$l_vec[k] <- -1
+    dat$l_vec[k] <- 0.25
     dat$u_vec[k] <- y_ij
     
     dat$censored[k] <- 1 
     
   } else if (dat$Equiv[k] == ">") {  # Right censoring
     dat$l_vec[k] <- y_ij
-    dat$u_vec[k] <- 256
+    dat$u_vec[k] <- 16
     dat$censored[k] <- 0  
   }
   else {  # Interval censoring
@@ -106,23 +116,7 @@ for (k in 1:nrow(dat)) {
   }
   
 }
-# for (k in 1:nrow(dat)) {
-#   if(dat$Equiv[k] == "=" || dat$Equiv[k] == "<="){  # Interval censoring
-#     dat$l_vec[k] <-dat$Rslt[k]/2
-#     dat$u_vec[k] <- dat$Rslt[k]
-#     dat$censored[k] <- 2
-#   } else if(dat$Equiv[k] == "<") {  # Left censoring
-#     dat$l_vec[k] <- NA
-#     dat$u_vec[k] <- dat$Rslt[k]*2
-#     dat$censored[k] <- 1
-#   } else if(dat$Equiv[k] == ">") {  # Right censoring
-#     dat$l_vec[k] <- dat$Rslt[k]/2
-#     dat$u_vec[k] <- NA
-#     dat$censored[k] <- 0
-#   }
-# }
-# 
-# dat <- na.omit(dat)
+
 ##---------------------------------------------------ay##
 
 y0 <- dat$l_vec
@@ -136,8 +130,11 @@ censor <- dat$censored
 write.csv(dat, paste0("DataBySeroAnti/SalT_",antibiotic, ".csv"))
 ##---------------------------------------------------ay##
 
+
 minYear <- min(dat$Year)
 yearLabel <- as.numeric(as.factor(as.numeric(dat$Year)))
+
+
 uniqueYearLength <- length(unique(yearLabel))
 
 
@@ -147,9 +144,13 @@ uniqueYearLength <- length(unique(yearLabel))
 dat_group <- dat %>% mutate(Rslt_log2 = log(Rslt, base = 2),
                             cGroup = ifelse(Concl=="R", 1, 0)) %>% 
   group_by(Year, cGroup) %>% 
+  # summarise(meanMIC = mean(Rslt_log2), 
+  #           num = n(),
+  #           meany0MIC = mean(l_vec, na.rm = TRUE)) %>%  
   summarise(meanMIC = mean(Rslt_log2), 
             num = n(),
-            meany0MIC = mean(l_vec, na.rm = TRUE)) %>%  
+            meany0MIC = mean(l_vec, na.rm = TRUE),
+            .groups = "drop") %>% 
   data.frame() 
 
 dat_totObs <- dat %>% group_by(Year) %>% summarise(totObs = n()) %>% data.frame() 
@@ -171,10 +172,15 @@ if (any(p > 1-(1e-15))) {
 
 ## beta 
 beta_tmp <- data.frame(Year = sort(unique(dat$Year)))
+##----------------------------ay
+## beta1 : pick not "R" data
+## beta2 : pick "R" data
+##----------------------------ay
 beta_1 <- left_join(beta_tmp, dat_full %>% filter(cGroup == 0) %>% 
                       dplyr:: select(Year, meany0MIC) %>% rename(beta1 = meany0MIC)) 
 beta_1_2 <- left_join(beta_1, dat_full %>% filter(cGroup == 1) %>% 
-                        dplyr:: select(Year, meany0MIC) %>% rename(beta2 = meany0MIC)) 
+                        dplyr:: select(Year, meany0MIC) %>% rename(beta2 = meany0MIC))
+
 if (any(is.na(beta_1_2$beta1))) {
   beta_1_2$beta1[which(is.na(beta_1_2$beta1))] <- mean(beta_1_2$beta1, na.rm = T)
 }
@@ -182,6 +188,7 @@ if (any(is.na(beta_1_2$beta2))) {
   beta_1_2$beta2[which(is.na(beta_1_2$beta2))] <- mean(beta_1_2$beta2, na.rm = T)
 }
 beta <- beta_1_2[, c(2, 3)]
+
 
 ## initial value for allocation 
 c <- ifelse(dat$Concl=="R", 1, 0)
@@ -235,11 +242,14 @@ if (!dir.exists(paste0("LinearModelOutput/From2002/", serotype, "_", antibiotic,
 }
 
 output <- paste0("LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/")
-iterMax <- 200
+iterMax <- 10000
 
 
 model2_mcmc(y0, y1, c, p, beta, sigma, mu, tau, yearLabel, censor, 
             muAlpha, sigmaAlpha, alpha, ## initial values
             iterMax, output, prop.sd = 5, seed = 2019)    
-# }
+
+source("Linear_res_extraction.R")  
+extract(serotype, antibiotic)
+
 

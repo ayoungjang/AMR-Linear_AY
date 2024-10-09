@@ -242,6 +242,7 @@ updateAlphaVec <- function(c,  uniqueYearLength, yearLabel, alpha,
   ## return alphaUpdate[]
   alphaUpdate <- rep(NA, uniqueYearLength)
   for (i in 1:uniqueYearLength) {
+
     cSubset <- c[yearLabel == i]
     alphaUpdate[i] <- updateAlpha(cSubset, alpha[i], muAlpha, sigmaAlpha, prop.sd) 
   }
@@ -260,25 +261,13 @@ updateHierarchicalMu <- function(mu, beta, tau, a, b, yearLabel) {
   ## muUpdata[[2]]: mu.1
   ## muUpdata[[3]]: gamma0, gamma1
   time <- c(1:length(unique(yearLabel))) # c(1, 2, ..., 16) always start with 1
+  
   muUpdate <- list(rep(0, nrow(beta)), 0, rep(0, 2))
   gamma1 <- mu[[3]][2]
   # update gamma0
   gamma0Update <- updateNormalMean(beta[, 1]-gamma1*time, tau[1], a=0, b=10^6)
   
-  ##ay-----------------------------------------------------------------------
-  ## gamma update
-  ##ay-----------------------------------------------------------------------
-  gamma1Updates <- numeric(length(time)) # gamma1의 업데이트를 저장할 벡터
-  gamma1Updates[1] <- updateNormalMean((beta[1, 1] - gamma0Update) / 1, tau[1] / 1, a = 0, b = 10^2)
-  
-  for (t in time[-1]) {
-    gamma1Updates[t] <- updateNormalMean((beta[t, 1] - gamma0Update) / t, tau[1] / t, a = 0, b = 10^2)
-  }
-  gamma1Update <- mean(gamma1Updates)
-  
-  ##-----------------------ay
-  
-  # gamma1Update <- updateNormalMean((beta[1, 1]-gamma0Update)/1, tau[1]/1, a=0, b=10^2)
+  gamma1Update <- updateNormalMean((beta[1, 1]-gamma0Update)/1, tau[1]/1, a=0, b=10^2)
   
   for (t in time[-1]) {
     gamma1Update <- updateNormalMean((beta[t, 1]-gamma0Update)/t, tau[1]/t, a=0, b=10^2)
@@ -301,45 +290,30 @@ updateBeta <- function(y, c, sigma, mu, tau, uniqueYearLength, yearLabel) {
   betaUpdated <- matrix(0, nrow = uniqueYearLength, ncol = 2)
   
   for (i in 1:uniqueYearLength) {
-    ## 
-    ySubset <- y[yearLabel == unique(yearLabel)[i]]
-    cSubset <- c[yearLabel == unique(yearLabel)[i]]
-    # ySubset <- y[yearLabel == i]
-    # cSubset <- c[yearLabel == i]
-    ##  
+  
+    ySubset <- y[yearLabel == i]
+    cSubset <- c[yearLabel == i]
+ 
+    
     first.comp.obs <- cSubset == 0
     second.comp.obs <- cSubset == 1
     ## number of first component 
     num.first.comp <- sum(first.comp.obs)
     ## number of second component 
     num.second.comp <- sum(second.comp.obs)
-    # if (num.first.comp == 0) {
-    #   ## no observations in the first component 
-    #   ## draw from prior 
-    #   betaUpdated[i, 1] <- rnorm(1, mean = mu[[1]][i], sd = tau[1])
-    #   betaUpdated[i, 2] <- updateNormalMean(ySubset, sigma[2], mu[[2]], tau[2]) 
-    #   
-    # } else if (num.second.comp == 0) {
-    #   ## no observations in the second component 
-    #   ## draw from prior 
-    #   betaUpdated[i, 2] <- rnorm(1, mean = mu[[2]], sd = tau[2])
-    #   betaUpdated[i, 1] <- updateNormalMean(ySubset, sigma[1], mu[[1]][i], tau[1])
-    # } 
-    # 
-    ##ay-----------------------------------------------------------------------
-    ## keep last beta value or using mean
-    ##ay-----------------------------------------------------------------------
     if (num.first.comp == 0) {
-      ## keep last beta value or using mean
-      betaUpdated[i, 1] <- ifelse(i > 1, betaUpdated[i - 1, 1], mu[[1]][i])
+      ## no observations in the first component
+      ## draw from prior
+      betaUpdated[i, 1] <- rnorm(1, mean = mu[[1]][i], sd = tau[1])
       betaUpdated[i, 2] <- updateNormalMean(ySubset, sigma[2], mu[[2]], tau[2])
-      
+
     } else if (num.second.comp == 0) {
-      ## keep last beta value or using mean
-      betaUpdated[i, 2] <- ifelse(i > 1, betaUpdated[i - 1, 2], mu[[2]])
+      ## no observations in the second component
+      ## draw from prior
+      betaUpdated[i, 2] <- rnorm(1, mean = mu[[2]], sd = tau[2])
       betaUpdated[i, 1] <- updateNormalMean(ySubset, sigma[1], mu[[1]][i], tau[1])
     }
-    ##ay-----------------------------------------------------------------------
+
     else {
       betaUpdated[i, 1] <- updateNormalMean(ySubset[cSubset == 0], sigma[1], 
                                             mu[[1]][i], tau[1])
