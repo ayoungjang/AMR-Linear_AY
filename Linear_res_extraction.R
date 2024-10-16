@@ -56,6 +56,7 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
   }
 }
 
+
 extract <- function(serotype, antibiotic){
   extractHierarchicalBeta <- function(yearVec, path) {
     load(paste0(path, "beta.keep.RData")) 
@@ -275,7 +276,7 @@ extract <- function(serotype, antibiotic){
   plotDatSource <- data.frame(Year = as.character(yearVec))
   
   dat <- read.csv(datFileName, stringsAsFactors = F, header = T) %>% filter(Year >= 2002)
-  
+  dat <- na.omit(dat)
   dat_group <- dat %>% mutate(Rslt_log2 = log(Rslt, base = 2),
                               cGroup = ifelse(Concl=="R", 1, 0), 
                               Year = as.factor(Year)) %>% 
@@ -326,7 +327,12 @@ extract <- function(serotype, antibiotic){
   varGamma1 <- matrix(unlist(mu.res.removeBurnin), nrow = num, byrow = T)[, 17] %>% var()
   ##--------------------------------------ay
   
-  t <- 1:14
+  # t <- 1:14
+  ##--------------------------------------ay
+  ## length of uniqueYear
+  ##--------------------------------------ay
+  t <- 1:length(yearVec)
+  ##--------------------------------------ay
   varOfLinear <- varGamma0 + varGamma1 * t^2 + 2 * covOfGamma * t
   centerOfLinear <- ga0mean + ga1mean * t
   upperOfLinear <- centerOfLinear + 1.96 * sqrt(varOfLinear)
@@ -370,8 +376,12 @@ extract <- function(serotype, antibiotic){
     # geom_line(aes(y = (beta0X25-ymin)*(pmax/(ymax-ymin)), group = 2), col = "red", linetype="dotted")+
     # geom_line(aes(y = (beta0X975-ymin)*(pmax/(ymax-ymin)), group = 2), col = "red", linetype="dotted")+
     geom_line(aes(y = (line.org-ymin)*(pmax/(ymax-ymin)), group = 2), col = "blue") +
+    # scale_y_continuous(limits=c(0,0.2),
+    ##---------------------------------------------------ay##
+    ## change 0.1 -> 0.2 for scale.
+    ##---------------------------------------------------ay##
     
-    scale_y_continuous(limits=c(0,0.1),
+    scale_y_continuous(limits=c(0,0.2),
                        sec.axis = sec_axis(trans = ~./(pmax/(ymax-ymin))+ymin, name = "Estimated mean log2(MIC) in non-resistant population")) +
     scale_color_manual(labels = c("Naive mean", "Est beta0"), values = c("black", "red")) +
     theme_light() +
@@ -387,13 +397,15 @@ extract <- function(serotype, antibiotic){
   ##---------------------------------------------------ay##
   ## print blue area. alpha "0.1" -> 0.1
   ##---------------------------------------------------ay##
+
   
-  plotres <- plotres +
-    geom_ribbon(aes(x = t,
-                    ymin=(lowerOfLinear-ymin)*(pmax/(ymax-ymin)),
-                    ymax=(upperOfLinear-ymin)*(pmax/(ymax-ymin))),
-                fill="blue", alpha=0.1)
-  
+plotres <- plotres +
+geom_ribbon(aes(x = t,
+                ymin=(lowerOfLinear-ymin)*(pmax/(ymax-ymin)),
+                ymax=(upperOfLinear-ymin)*(pmax/(ymax-ymin))),
+            fill="blue", alpha=0.1)
+
+
   print(plotres)
   dev.off()
   system(paste("open",paste0(path, serotype, "_", antibiotic, "_LogComb_newRangeCI.pdf")))

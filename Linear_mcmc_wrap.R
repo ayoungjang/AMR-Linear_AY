@@ -15,12 +15,14 @@ common_columns <- c("Specimen.ID", "Data.Year", "Serotype", "Region.Name")
 
 anti_Name <- c("CHL", "TIO")
 
-data <- read.csv("./data.csv")
-group_SalT <- data %>% filter(Serotype == "I 4,[5],12:i:-") #CHL and TIO 
+data <- read.csv("./IsolateData.csv")
+# group_SalT <- data %>% filter(Serotype == "I 4,[5],12:i:-") #CHL and TIO 
+group_SalT <- data
 write.csv(group_SalT, "./DataBySeroAnti/SalT.csv")
 
 data <- read.csv("./DataBySeroAnti/SalT.csv")
 data <- data[-1]
+
 
 for(antibiotic in anti_Name){
   
@@ -61,7 +63,7 @@ for(antibiotic in anti_Name){
 # antibiotic <-  anti_Name[j]
 
 serotype <- "SalT"
-antibiotic <- "CHL"
+antibiotic <- "TIO"
 
 ##----------------------------------------------
 ## Loading data set 
@@ -76,8 +78,18 @@ antibiotic <- "CHL"
 datFileName <- paste0("DataBySeroAnti/", serotype, "_", antibiotic, ".csv")
 dat <- read.csv(datFileName, stringsAsFactors = F, header = T)
 
+
 dat <- dat %>% filter(Year >= 2002)
 dat <- dat[-1]
+
+dat <- na.omit(dat)
+
+##---------------------------------------------------ay##
+## some Year value has "*" - remove
+##---------------------------------------------------ay##
+
+dat$Year <- gsub("\\*", "", dat$Year)
+##---------------------------------------------------ay##
 
 ##---------------------------------------------------ay##
 ## order by Year
@@ -129,6 +141,7 @@ censor <- dat$censored
 
 write.csv(dat, paste0("DataBySeroAnti/SalT_",antibiotic, ".csv"))
 ##---------------------------------------------------ay##
+
 
 
 minYear <- min(dat$Year)
@@ -237,12 +250,13 @@ sigmaAlpha <- sd(alpha)
 
 ##--------------------------------------
 source("Linear_mcmc.R")
+
 if (!dir.exists(paste0("LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2"))) {
   dir.create(paste0("LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2"))
 }
 
 output <- paste0("LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/")
-iterMax <- 10000
+iterMax <- 200
 
 
 model2_mcmc(y0, y1, c, p, beta, sigma, mu, tau, yearLabel, censor, 

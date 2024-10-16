@@ -55,7 +55,7 @@ rTNorm <- function(y, y1, mu, sigma, censoredType) {
   N_prob0 <- 1e-15 
   N_prob1 <- 1 - 1e-15
   ans <- 1
-  
+
   if (censoredType == 0) {
     ## right censored 
     ## centerd observation y 
