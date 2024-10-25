@@ -259,7 +259,7 @@ if (!dir.exists(paste0("LinearModelOutput/From2002/", serotype, "_", antibiotic,
 }
 
 output <- paste0("LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/")
-iterMax <- 300
+iterMax <- 200
 
 
 model2_mcmc(y0, y1, c, p, beta, sigma, mu, tau, yearLabel, censor, 
