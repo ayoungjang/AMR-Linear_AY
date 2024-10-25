@@ -15,14 +15,13 @@ common_columns <- c("Specimen.ID", "Data.Year", "Serotype", "Region.Name")
 
 anti_Name <- c("CHL", "TIO")
 
-data <- read.csv("./IsolateData.csv")
-# group_SalT <- data %>% filter(Serotype == "I 4,[5],12:i:-") #CHL and TIO 
-group_SalT <- data
+data <- read.csv("./test_new.csv")
+group_SalT <- data %>% filter(Serotype == "I 4,[5],12:i:-") #CHL and TIO
+# group_SalT <- data %>% filter(Serotype == "O157") #CHL and TIO 
 write.csv(group_SalT, "./DataBySeroAnti/SalT.csv")
 
 data <- read.csv("./DataBySeroAnti/SalT.csv")
 data <- data[-1]
-
 
 for(antibiotic in anti_Name){
   
@@ -63,8 +62,10 @@ for(antibiotic in anti_Name){
 # antibiotic <-  anti_Name[j]
 
 serotype <- "SalT"
-antibiotic <- "TIO"
+antibiotic <- "CHL"
 
+min_year <- 2003
+max_year <- 2024
 ##----------------------------------------------
 ## Loading data set 
 ##----------------------------------------------
@@ -77,20 +78,22 @@ antibiotic <- "TIO"
 
 datFileName <- paste0("DataBySeroAnti/", serotype, "_", antibiotic, ".csv")
 dat <- read.csv(datFileName, stringsAsFactors = F, header = T)
+##----------------------------------------------
+## remove * from Year
+##----------------------------------------------
+dat <- dat %>%
+  mutate(Year = gsub("\\*", "", Year))
+##----------------------------------------------
 
+dat <- dat %>% filter(Year >= min_year) %>% filter(Year <= max_year)
 
-dat <- dat %>% filter(Year >= 2002)
+# dat <- dat %>%
+#   group_by(Year) %>%
+#   filter(n() > 20) %>%
+#   ungroup()
+# 
+
 dat <- dat[-1]
-
-dat <- na.omit(dat)
-
-##---------------------------------------------------ay##
-## some Year value has "*" - remove
-##---------------------------------------------------ay##
-
-dat$Year <- gsub("\\*", "", dat$Year)
-##---------------------------------------------------ay##
-
 ##---------------------------------------------------ay##
 ## order by Year
 ##---------------------------------------------------ay##
@@ -111,13 +114,14 @@ for (k in 1:nrow(dat)) {
   
   if (dat$Equiv[k] == "<=" || dat$Equiv[k] == "<") {  # Left censoring
     dat$l_vec[k] <- 0.25
+   
     dat$u_vec[k] <- y_ij
     
     dat$censored[k] <- 1 
     
   } else if (dat$Equiv[k] == ">") {  # Right censoring
     dat$l_vec[k] <- y_ij
-    dat$u_vec[k] <- 16
+    dat$u_vec[k] <- 16.0
     dat$censored[k] <- 0  
   }
   else {  # Interval censoring
@@ -141,7 +145,6 @@ censor <- dat$censored
 
 write.csv(dat, paste0("DataBySeroAnti/SalT_",antibiotic, ".csv"))
 ##---------------------------------------------------ay##
-
 
 
 minYear <- min(dat$Year)
@@ -185,6 +188,7 @@ if (any(p > 1-(1e-15))) {
 
 ## beta 
 beta_tmp <- data.frame(Year = sort(unique(dat$Year)))
+
 ##----------------------------ay
 ## beta1 : pick not "R" data
 ## beta2 : pick "R" data
@@ -205,12 +209,12 @@ beta <- beta_1_2[, c(2, 3)]
 
 ## initial value for allocation 
 c <- ifelse(dat$Concl=="R", 1, 0)
-
 ## sigma
 sigma <- dat %>% mutate(cGroup = ifelse(Concl=="R", 1, 0)) %>% 
   group_by(cGroup) %>% summarise(se = sd(l_vec, na.rm = TRUE)) %>% data.frame () %>% .[, "se"] 
 
 SMALLVAL <- 0.0001
+
 if (any(sigma == 0)) {
   sigma <- sigma + SMALLVAL 
 }
@@ -224,7 +228,7 @@ lmod <- lm(beta$beta1 ~ c(1:nrow(beta)))
 ##---------------------------------------------------ay## 
 ## initialzie mu empty array
 ##---------------------------------------------------ay## 
-mu <- data.frame(Intercept = numeric(nrow(beta)), Slope = numeric(nrow(beta)))##
+mu <- data.frame(Intercept = numeric(nrow(beta)), Slope = numeric(nrow(beta)))
 ##---------------------------------------------------ay##
 
 
@@ -250,13 +254,12 @@ sigmaAlpha <- sd(alpha)
 
 ##--------------------------------------
 source("Linear_mcmc.R")
-
 if (!dir.exists(paste0("LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2"))) {
   dir.create(paste0("LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2"))
 }
 
 output <- paste0("LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/")
-iterMax <- 200
+iterMax <- 300
 
 
 model2_mcmc(y0, y1, c, p, beta, sigma, mu, tau, yearLabel, censor, 
@@ -264,6 +267,5 @@ model2_mcmc(y0, y1, c, p, beta, sigma, mu, tau, yearLabel, censor,
             iterMax, output, prop.sd = 5, seed = 2019)    
 
 source("Linear_res_extraction.R")  
-extract(serotype, antibiotic)
-
+extract(serotype, antibiotic,min_year,max_year)
 

@@ -9,7 +9,7 @@
 ##---------------------------------------------------
 library("dplyr")
 library("ggplot2")
-All_Sal <- c("SalT", "Sal4")
+# All_Sal <- c("SalT", "Sal4")
 
 ##---------------------------------------------------ay##
 anti_Name <- c("TIO","CHL")
@@ -57,8 +57,10 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
 }
 
 
-extract <- function(serotype, antibiotic){
+extract <- function(serotype, antibiotic,min_year,max_year){
+
   extractHierarchicalBeta <- function(yearVec, path) {
+ 
     load(paste0(path, "beta.keep.RData")) 
     load(paste0(path, "mu.keep.RData")) 
     load(paste0(path, "p.keep.RData")) 
@@ -190,8 +192,7 @@ extract <- function(serotype, antibiotic){
   # antibiotic <- anti_Name[i]
   path <- paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/")
   
-  yearSource <- read.csv(paste0("./DataBySeroAnti/",serotype, "_", antibiotic, ".csv")) %>% 
-    filter(Year >= 2002)
+  yearSource <- read.csv(paste0("./DataBySeroAnti/",serotype, "_", antibiotic, ".csv")) %>% filter(Year >= min_year) %>% filter(Year <= max_year)
   
   yearVec <- yearSource %>% 
     dplyr::select("Year") %>% 
@@ -269,13 +270,13 @@ extract <- function(serotype, antibiotic){
   
   path <- paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/")
   datFileName <- paste0("./DataBySeroAnti/", serotype, "_", antibiotic, ".csv") 
-  yearSource <- read.csv(datFileName) %>% filter(Year >= 2002)
+  yearSource <- read.csv(datFileName) %>% filter(Year >= min_year) %>% filter(Year <= max_year)
   yearVec <- yearSource %>% 
     dplyr::select("Year") %>% 
     unique() %>% .[,"Year"]
   plotDatSource <- data.frame(Year = as.character(yearVec))
   
-  dat <- read.csv(datFileName, stringsAsFactors = F, header = T) %>% filter(Year >= 2002)
+  dat <- read.csv(datFileName, stringsAsFactors = F, header = T) %>% filter(Year >= min_year)%>% filter(Year <= max_year)
   dat <- na.omit(dat)
   dat_group <- dat %>% mutate(Rslt_log2 = log(Rslt, base = 2),
                               cGroup = ifelse(Concl=="R", 1, 0), 
@@ -310,7 +311,7 @@ extract <- function(serotype, antibiotic){
   # mu.res.removeBurnin <- tail(mu.keep, 6000)
   # 
   # covOfGamma <- cov(matrix(unlist(mu.res.removeBurnin), nrow = 6000, byrow = T)[, 16], matrix(unlist(mu.res.removeBurnin), nrow = 6000, byrow = T)[, 17])
-  # varGamma0 <- matrix(unlist(mu.res.removeBurnin), nrow = 6000, byrow = T)[, 16] %>% var()
+  # varGamma0 <- matrix(unlist(mu.res.removeBurnin), nrow = 6000, byrow 0 T)[, 16] %>% var()
   # varGamma1 <- matrix(unlist(mu.res.removeBurnin), nrow = 6000, byrow = T)[, 17] %>% var()
   # 
   ##--------------------------------------ay
@@ -318,13 +319,22 @@ extract <- function(serotype, antibiotic){
   ##--------------------------------------ay
   
   mu.res.removeBurnin <- tail(mu.keep, 6000)
-  
   num <- length(mu.res.removeBurnin)
   
+  ##--------------------------------------ay
+  ## changed matrix and change 16, 17 to numcols
+  ##--------------------------------------ay
   
-  covOfGamma <- cov(matrix(unlist(mu.res.removeBurnin), nrow = num, byrow = T)[, 16], matrix(unlist(mu.res.removeBurnin), nrow = num, byrow = T)[, 17])
-  varGamma0 <- matrix(unlist(mu.res.removeBurnin), nrow = num, byrow = T)[, 16] %>% var()
-  varGamma1 <- matrix(unlist(mu.res.removeBurnin), nrow = num, byrow = T)[, 17] %>% var()
+  mu_matrix <- matrix(unlist(mu.res.removeBurnin), nrow = num, byrow = TRUE)
+  
+ 
+  matrix_dimensions <- dim(mu_matrix)
+  num_cols <- ncol(mu_matrix)  
+  ##--------------------------------------ay
+  
+  covOfGamma <- cov(matrix(unlist(mu.res.removeBurnin), nrow = num, byrow = T)[, num_cols], matrix(unlist(mu.res.removeBurnin), nrow = num, byrow = T)[, num_cols])
+  varGamma0 <- matrix(unlist(mu.res.removeBurnin), nrow = num, byrow = T)[, num_cols] %>% var()
+  varGamma1 <- matrix(unlist(mu.res.removeBurnin), nrow = num, byrow = T)[, num_cols] %>% var()
   ##--------------------------------------ay
   
   # t <- 1:14
@@ -364,7 +374,10 @@ extract <- function(serotype, antibiotic){
   plotDatSource <- plotDatSource %>% 
     mutate(prop = ifelse(is.na(prop), 0, prop))
   
-  pdf(paste0(path, serotype, "_", antibiotic, "_LogComb_newRangeCI.pdf"))
+  now <- format(Sys.time(),"%Y%m%d%H%M")
+  
+  
+  pdf(paste0(path, serotype, "_", antibiotic, "_LogComb_newRangeCI_",max_year,"_",now,".pdf"))
   
   plotres <- ggplot(plotDatSource, aes(x = Year, y = prop)) +
     geom_bar(stat = "identity", fill = "grey85") +
@@ -408,7 +421,7 @@ geom_ribbon(aes(x = t,
 
   print(plotres)
   dev.off()
-  system(paste("open",paste0(path, serotype, "_", antibiotic, "_LogComb_newRangeCI.pdf")))
+  system(paste("open",paste0(path, serotype, "_", antibiotic, "_LogComb_newRangeCI_",max_year,"_",now,".pdf")))
   ##---------------------------------------------------ay## 
 }
  
