@@ -11,13 +11,13 @@ library("zoo")
 setwd("C:/Users/ayoung/Desktop/AMR-Linear")
 suffixes <- c("Equiv", "Rslt", "Concl", "ConclPred")
 
-common_columns <- c("Specimen.ID", "Data.Year", "Serotype", "Region.Name")
+common_columns <- c("Specimen.ID", "Data.Year", "Serotype", "Region.Name","Specimen.Source")
 
 anti_Name <- c("CHL", "TIO")
 
-data <- read.csv("./test_new.csv")
-group_SalT <- data %>% filter(Serotype == "I 4,[5],12:i:-") #CHL and TIO
-# group_SalT <- data %>% filter(Serotype == "O157") #CHL and TIO 
+data <- read.csv("./Ecoli.csv")
+# group_SalT <- data %>% filter(Serotype == "I 4,[5],12:i:-") #CHL and TIO
+group_SalT <- data %>% filter(Serotype == "O157:H7") #CHL and TIO
 write.csv(group_SalT, "./DataBySeroAnti/SalT.csv")
 
 data <- read.csv("./DataBySeroAnti/SalT.csv")
@@ -42,7 +42,6 @@ for(antibiotic in anti_Name){
   renamed_data <- selected_data %>%
     rename_with(~ rename_columns(., antibiotic), .cols = selected_columns)
   
-  
   write.csv(renamed_data, paste0("DataBySeroAnti/SalT_", antibiotic, ".csv"), row.names = FALSE)
 }
 
@@ -64,8 +63,8 @@ for(antibiotic in anti_Name){
 serotype <- "SalT"
 antibiotic <- "CHL"
 
-min_year <- 2003
-max_year <- 2024
+min_year <- 2015
+max_year <- 2023
 ##----------------------------------------------
 ## Loading data set 
 ##----------------------------------------------
@@ -86,6 +85,9 @@ dat <- dat %>%
 ##----------------------------------------------
 
 dat <- dat %>% filter(Year >= min_year) %>% filter(Year <= max_year)
+##ay - pick only Stool
+dat <- dat %>% filter(Specimen.Source == "Stool")
+
 
 # dat <- dat %>%
 #   group_by(Year) %>%
@@ -154,6 +156,20 @@ yearLabel <- as.numeric(as.factor(as.numeric(dat$Year)))
 uniqueYearLength <- length(unique(yearLabel))
 
 
+##-------------------------------------------ay
+## scatter plot by Year
+##-------------------------------------------ay
+# dat$Year <- as.numeric(as.character(dat$Year))
+# 
+# ggplot(dat, aes(x = Year)) +
+#   geom_point(aes(y = Rslt, color = "Rslt"), shape = 16) +
+#   labs(x = "Year", y = "Values", title = "Scatter Plot of Year") +
+#   scale_color_manual(name = "Legend", values = c("Rslt" = "blue")) +
+#   theme_minimal()
+
+##------------------------------------------ay
+
+
 ##----------------------------------------------
 ## initial values : estimated from data set 
 ##----------------------------------------------
@@ -207,7 +223,7 @@ if (any(is.na(beta_1_2$beta2))) {
 beta <- beta_1_2[, c(2, 3)]
 
 
-## initial value for allocation 
+## initial value for allocation               
 c <- ifelse(dat$Concl=="R", 1, 0)
 ## sigma
 sigma <- dat %>% mutate(cGroup = ifelse(Concl=="R", 1, 0)) %>% 
@@ -259,7 +275,7 @@ if (!dir.exists(paste0("LinearModelOutput/From2002/", serotype, "_", antibiotic,
 }
 
 output <- paste0("LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/")
-iterMax <- 200
+iterMax <- 500
 
 
 model2_mcmc(y0, y1, c, p, beta, sigma, mu, tau, yearLabel, censor, 
