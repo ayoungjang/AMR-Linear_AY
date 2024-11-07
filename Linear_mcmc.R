@@ -457,7 +457,7 @@ model2_mcmc <- function(y0, y1, c, p, beta, sigma, mu, tau, yearLabel, censor,
     mu.keep[[iter]] <- muUpdate
     tau.keep[[iter]] <- tauUpdate
     
-    # if (iter %% 1 == 0) {
+    # if (iter>490) {
     #   cat("iter is ", iter, "\n")
     #   print(pupdate)
     #   print(betaUpdate)

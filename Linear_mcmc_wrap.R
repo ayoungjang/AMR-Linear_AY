@@ -63,7 +63,7 @@ for(antibiotic in anti_Name){
 serotype <- "SalT"
 antibiotic <- "CHL"
 
-min_year <- 2015
+min_year <- 2003
 max_year <- 2023
 ##----------------------------------------------
 ## Loading data set 
@@ -88,12 +88,12 @@ dat <- dat %>% filter(Year >= min_year) %>% filter(Year <= max_year)
 ##ay - pick only Stool
 dat <- dat %>% filter(Specimen.Source == "Stool")
 
-
+# # 
 # dat <- dat %>%
 #   group_by(Year) %>%
 #   filter(n() > 20) %>%
 #   ungroup()
-# 
+
 
 dat <- dat[-1]
 ##---------------------------------------------------ay##
@@ -123,7 +123,7 @@ for (k in 1:nrow(dat)) {
     
   } else if (dat$Equiv[k] == ">") {  # Right censoring
     dat$l_vec[k] <- y_ij
-    dat$u_vec[k] <- 16.0
+    dat$u_vec[k] <- 32
     dat$censored[k] <- 0  
   }
   else {  # Interval censoring
@@ -275,7 +275,7 @@ if (!dir.exists(paste0("LinearModelOutput/From2002/", serotype, "_", antibiotic,
 }
 
 output <- paste0("LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/")
-iterMax <- 500
+iterMax <- 200
 
 
 model2_mcmc(y0, y1, c, p, beta, sigma, mu, tau, yearLabel, censor, 
@@ -284,4 +284,5 @@ model2_mcmc(y0, y1, c, p, beta, sigma, mu, tau, yearLabel, censor,
 
 source("Linear_res_extraction.R")  
 extract(serotype, antibiotic,min_year,max_year)
+
 

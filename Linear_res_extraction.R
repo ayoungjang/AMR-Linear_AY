@@ -275,6 +275,7 @@ extract <- function(serotype, antibiotic,min_year,max_year){
   yearVec <- yearSource %>% 
     dplyr::select("Year") %>% 
     unique() %>% .[,"Year"]
+  
   plotDatSource <- data.frame(Year = as.character(yearVec))
   
   dat <- read.csv(datFileName, stringsAsFactors = F, header = T) %>% filter(Year >= min_year)%>% filter(Year <= max_year)
@@ -293,8 +294,10 @@ extract <- function(serotype, antibiotic,min_year,max_year){
   
   dat_full <- left_join(dat_group, dat_totObs) %>% mutate(prop = num / totObs)
   
+  #########????########
   plotDatSource <- left_join(plotDatSource, dat_full[dat_full$cGroup==1, c("Year", "prop")])
   plotDatSource <- left_join(plotDatSource, dat_group[dat_group$cGroup==0, c("Year", "meanMIC")])
+  #########????########
   
   beta0est <- read.csv(paste0("./LinearModelOutput/From2002/", serotype, "_", antibiotic, "_Res2/", "ParamEst.csv"))[, 2:5]
   beta0est$yearVec <- as.factor(beta0est$yearVec)
@@ -304,7 +307,8 @@ extract <- function(serotype, antibiotic,min_year,max_year){
   line <- read.csv(paste0(path, "ParamEst.csv"))[, "mu0mean"]
   ga0mean <- read.csv(paste0(path, "ParamEst.csv"))[, "ga0mean"][1]
   ga1mean <- read.csv(paste0(path, "ParamEst.csv"))[, "ga1mean"][1]
-  line.org <- line
+ 
+
   #line.org <- 2^line
   plotDatSource <- left_join(plotDatSource, beta0est.org, by = c("Year"="yearVec"))
   load(paste0(path,"mu.keep.RData"))
@@ -329,7 +333,6 @@ extract <- function(serotype, antibiotic,min_year,max_year){
   mu_matrix <- matrix(unlist(mu.res.removeBurnin), nrow = num, byrow = TRUE)
   
  
-  matrix_dimensions <- dim(mu_matrix)
   num_cols <- ncol(mu_matrix)  
   ##--------------------------------------ay
   
@@ -374,13 +377,29 @@ extract <- function(serotype, antibiotic,min_year,max_year){
   
   plotDatSource <- plotDatSource %>% 
     mutate(prop = ifelse(is.na(prop), 0, prop))
-
   
+  # 
+  # plotDatSource <- plotDatSource %>%
+  #   mutate(Year = as.numeric(Year)) %>%
+  #   filter(Year >= min_year, Year <= max_year)
+
   now <- format(Sys.time(),"%Y%m%d%H%M")
   
+
+  
+  # write.csv(plotDatSource, paste0("DataBySeroAnti/SalT_", antibiotic,"_",now, "_plotData.csv"), row.names = FALSE)
+  ##-------------------------------------ay##
+  ## added to label by 1
+  ##-------------------------------------ay##
+  
+  plotDatSource$Year <- as.numeric(plotDatSource$Year)
+  min_year <- min(plotDatSource$Year)
+  max_year <- max(plotDatSource$Year)
+
+  ##---------------------------------------
   
   pdf(paste0(path, serotype, "_", antibiotic, "_LogComb_newRangeCI_",min_year,"_",max_year,"_",now,".pdf"))
-  
+
   plotres <- ggplot(plotDatSource, aes(x = Year, y = prop)) +
     geom_bar(stat = "identity", fill = "grey85") +
     labs(y = "Observed proportion of resistant isolates", x = "Year") +
@@ -390,92 +409,45 @@ extract <- function(serotype, antibiotic,min_year,max_year){
     geom_point(aes(y = (beta0mean-ymin)*(pmax/(ymax-ymin)), group = 2), col = "red", size = 1.5)+
     # geom_line(aes(y = (beta0X25-ymin)*(pmax/(ymax-ymin)), group = 2), col = "red", linetype="dotted")+
     # geom_line(aes(y = (beta0X975-ymin)*(pmax/(ymax-ymin)), group = 2), col = "red", linetype="dotted")+
-    geom_line(aes(y = (line.org-ymin)*(pmax/(ymax-ymin)), group = 2), col = "blue") +
+    geom_line(aes(y = (line-ymin)*(pmax/(ymax-ymin)), group = 2), col = "blue") +
+    scale_x_continuous(breaks = seq(min_year, max_year, by = 1)) +
     # scale_y_continuous(limits=c(0,0.2),
     ##---------------------------------------------------ay##
     ## change 0.1 -> 0.2 for scale.
     ##---------------------------------------------------ay##
+    # scale_x_continuous(breaks = plotDatSource$Year) +
     
-    scale_y_continuous(limits=c(0,0.2),
+    scale_y_continuous(limits=c(0,0.3),
                        sec.axis = sec_axis(trans = ~./(pmax/(ymax-ymin))+ymin, name = "Estimated mean log2(MIC) in non-resistant population")) +
+    
     scale_color_manual(labels = c("Naive mean", "Est beta0"), values = c("black", "red")) +
     theme_light() +
-    theme(axis.text.x = element_text(angle = 270, hjust = 1), 
+    theme(axis.text.x = element_text(angle = 270, hjust = 1),
           axis.title.y.right=element_text(color="red"),
           axis.text.y.right=element_text(color="red")) +
     labs(title = paste0(
       # c("S. enterica serovar", "S. enterica serovar I,4,[5],12:i:-"),
       serotype,", ", antibiotic, ", log2(MIC) scale"))
-  
-  
+
+
   # plotres <- plotres + geom_point(aes(x = sig.year, y = sig.val), data = sig.df, shape = 1, size = 3, col = "black")
-  
+
   ##---------------------------------------------------ay##
   ## print blue area. alpha "0.1" -> 0.1
   ##---------------------------------------------------ay##
 
-  
-plotres <- plotres +
-geom_ribbon(aes(x = t,
-                ymin=(lowerOfLinear-ymin)*(pmax/(ymax-ymin)),
-                ymax=(upperOfLinear-ymin)*(pmax/(ymax-ymin))),
-            fill="blue", alpha=0.1)
+
+# plotres <- plotres +
+# geom_ribbon(aes(x = t,
+#                 ymin=(lowerOfLinear-ymin)*(pmax/(ymax-ymin)),
+#                 ymax=(upperOfLinear-ymin)*(pmax/(ymax-ymin))),
+#             fill="blue", alpha=0.1)
 
 
   print(plotres)
   dev.off()
   system(paste("open",paste0(path, serotype, "_", antibiotic, "_LogComb_newRangeCI_",min_year,"_",max_year,"_",now,".pdf")))
 
-  
-    
-  
-  
-  # ---------------------------------------------------------------------------------------- ayo
-  # pdf(paste0(path, serotype, "_", antibiotic, "_LogComb_newRangeCI_combined_",now,".pdf"))
-  # full_period_data <- plotDatSource
-  # short_period_data <- plotDatSource %>% filter(Year >= 2015)
-  # 
-  # merged_data <- full_period_data %>%
-  #   select(Year, prop, meanMIC, beta0mean) %>%
-  #   full_join(short_period_data %>% select(Year, prop,meanMIC, beta0mean),
-  #             by = "Year", suffix = c("_full", "_short"))
-  # # 전체 데이터와 부분 데이터를 Year 기준으로 병합 (결측값을 포함한 상태로)
-  # 
-  # d <- 0.01
-  # combine_res <- ggplot(merged_data, aes(x = Year)) +
-  #   # Full 기간 데이터에 대한 플롯
-  #   geom_bar(aes(y = prop_full), stat = "identity", fill = "grey85", alpha = 0.5) +
-  #   geom_line(aes(y = (meanMIC_full - ymin) * (pmax / (ymax - ymin)), group = 2), col = "grey50", na.rm = TRUE) +
-  #   geom_point(aes(y = (meanMIC_full - ymin) * (pmax / (ymax - ymin)), group = 2), col = "grey50", size = 1.5, shape = 4, na.rm = TRUE) +
-  #   geom_line(aes(y = (beta0mean_full - ymin) * (pmax / (ymax - ymin)), group = 2), col = "red", na.rm = TRUE) +
-  #   geom_point(aes(y = (beta0mean_full - ymin) * (pmax / (ymax - ymin)), group = 2), col = "red", size = 1.5, na.rm = TRUE) +
-  #   geom_line(aes(y = (line.org - ymin) * (pmax / (ymax - ymin)), group = 2), col = "blue", na.rm = TRUE) +
-  #   
-  #   # Short 기간 데이터에 대한 플롯
-  #   geom_line(aes(y = (meanMIC_short - ymin) * (pmax / (ymax - ymin)), group = 2) + d, col = "yellow", linetype = "dashed", na.rm = TRUE) +
-  #   geom_point(aes(y = (meanMIC_short - ymin) * (pmax / (ymax - ymin)), group = 2)+ d,, col = "yellow", size = 1.5, shape = 4, na.rm = TRUE) +
-  #   geom_line(aes(y = (beta0mean_short - ymin) * (pmax / (ymax - ymin)), group = 2)+ d,, col = "green", linetype = "dashed", na.rm = TRUE) +
-  #   geom_point(aes(y = (beta0mean_short - ymin) * (pmax / (ymax - ymin)), group = 2)+ d,, col = "green", size = 1.5, na.rm = TRUE) +
-  #   geom_line(aes(y = (line.org - ymin) * (pmax / (ymax - ymin))+ d, group = 2), col = "pink", linetype = "dashed", na.rm = TRUE) +
-  #   
-  #   # 공통 설정
-  #   scale_y_continuous(limits = c(0, 0.3),
-  #                      sec.axis = sec_axis(trans = ~ . / (pmax / (ymax - ymin)) + ymin,
-  #                                          name = "Estimated mean log2(MIC) in non-resistant population")) +
-  #   theme_light() +
-  #   theme(axis.text.x = element_text(angle = 270, hjust = 1),
-  #         axis.title.y.right = element_text(color = "red"),
-  #         axis.text.y.right = element_text(color = "red")) +
-  #   labs(title = "Comparison of Full Period (2003-2023) and Short Period (2015-2023)",
-  #        y = "Observed proportion of resistant isolates",
-  #        x = "Year")
-  # 
-  # print(combine_res)
-  # dev.off()
-  # system(paste("open",paste0(path, serotype, "_", antibiotic, "_LogComb_newRangeCI_combined_",now,".pdf")))
-  # 
-  # 
-  ##-------------------------------------------------------------------------------------- ay## 
 }
  
   # plotres
